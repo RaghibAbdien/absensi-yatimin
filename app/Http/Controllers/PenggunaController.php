@@ -3,19 +3,40 @@
 namespace App\Http\Controllers;
 
 use App\Models\Pengguna;
+use App\Models\Presensi;
+use App\Models\TanggalPresensi;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 
 class PenggunaController extends Controller
 {
-    public function showPengguna()
+    public function showPengguna(Request $request)
     {
-        $data = Pengguna::all();
-        $sdhAbsen = Pengguna::whereNotNull('foto')->count();
-        $blmAbsen = Pengguna::whereNull('foto')->count();
-        return view('index', compact('data', 'sdhAbsen', 'blmAbsen'));
+        $filterDate = $request->input('filterDate', date('Y-m-d'));
+        $tanggal = TanggalPresensi::where('tanggal', $filterDate)->first();
+
+        if (!$tanggal) {
+            return redirect()->back()->with('error', 'Belum ada data absensi untuk tanggal tersebut');
+        }
+
+        $tanggalId = $tanggal->id;
+
+        $data = Pengguna::with(['presensis' => function ($query) use ($tanggalId) {
+            $query->where('tanggal_id', $tanggalId);
+        }])->get();
+
+        $sdhAbsen = $data->filter(function ($pengguna) {
+            return $pengguna->presensis->isNotEmpty() && $pengguna->presensis->first()->foto != null;
+        })->count();
+
+        $blmAbsen = $data->filter(function ($pengguna) {
+            return $pengguna->presensis->isEmpty() || $pengguna->presensis->first()->foto == null;
+        })->count();
+
+        return view('index', compact('data', 'filterDate', 'sdhAbsen', 'blmAbsen'));
     }
 
 
@@ -41,41 +62,72 @@ class PenggunaController extends Controller
         ]);
 
         try {
-            Pengguna::create([
+            $pengguna = Pengguna::create([
                 'no_induk' => $request->input('no_induk'),
                 'nama_yatimin' => $request->input('nama_yatimin'),
                 'kelahiran' => $request->input('kelahiran'),
                 'alamat' => $request->input('alamat'),
             ]);
 
-            return response()->json(['success' => 'Berhasil menambahkan data'], 200);
+            $tanggalHariIni = Carbon::now();
+
+            $tanggalTerakhir = TanggalPresensi::orderBy('tanggal', 'desc')->first()->tanggal;
+
+            $currentDate = $tanggalHariIni;
+            while ($currentDate <= $tanggalTerakhir) {
+                $tanggal = TanggalPresensi::firstOrCreate(['tanggal' => $currentDate->format('Y-m-d')]);
+
+                Presensi::create([
+                    'pengguna_id' => $pengguna->id,
+                    'tanggal_id' => $tanggal->id,
+                    'foto' => null,
+                ]);
+
+                $currentDate->addDay();
+            }
+
+            return response()->json(['success' => 'Berhasil menambahkan data pengguna dan presensi'], 200);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->validator->errors()->all()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Terjadi kesalahan, coba lagi'], 500);
         }
     }
 
+
     public function savePhoto(Request $request)
     {
-        $userId = $request->user_id;
-        $photoData = $request->photo;
+        $userId = $request->input('user_id');
+        $photoData = $request->input('photo');
+        $filterDate = $request->input('filter_date');
+
         $userName = Pengguna::findOrFail($userId);
 
-        $fileName = 'photo_' . $userId . '_' . str_replace(' ', '_', $userName->nama_yatimin) . '.jpg';
+        $currentDate = Carbon::parse($filterDate)->format('Y-m-d');
+        $fileName = 'photo_' . $userId . '_' . str_replace(' ', '_', $userName->nama_yatimin) . '_' . $currentDate . '.jpg';
 
         $image = str_replace('data:image/jpeg;base64,', '', $photoData);
         $image = base64_decode($image);
-        $path = storage_path('app/public/photos/' . $fileName);
 
+        $userFolder = storage_path('app/public/photos/' . $userId);
+        if (!file_exists($userFolder)) {
+            mkdir($userFolder, 0777, true);
+        }
+
+        $path = $userFolder . '/' . $fileName;
         file_put_contents($path, $image);
 
-        $user = Pengguna::find($userId);
-        $user->foto = $fileName;
-        $user->save();
+        $tanggalId = TanggalPresensi::where('tanggal', $filterDate)->first()->id;
 
-        Log::info(Storage::url($user->foto));
+        $presensi = Presensi::updateOrCreate(
+            ['pengguna_id' => $userId, 'tanggal_id' => $tanggalId],
+            ['foto' => 'photos/' . $userId . '/' . $fileName]
+        );
 
+        Log::info(Storage::url($presensi->foto));
         return response()->json(['message' => 'Foto berhasil disimpan']);
     }
+
 
     public function updateStatus(Request $request)
     {

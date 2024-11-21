@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('nama_yatimin');
             $table->year('kelahiran');
             $table->text('alamat');
-            $table->string('foto')->nullable();
             $table->boolean('status')->default(true);
             $table->timestamps();
         });

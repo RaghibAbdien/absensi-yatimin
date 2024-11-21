@@ -5,14 +5,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Pengguna extends Model
+class TanggalPresensi extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = ['tanggal'];
 
     public function presensis()
     {
-        return $this->hasMany(Presensi::class, 'pengguna_id');
+        return $this->hasMany(Presensi::class, 'tanggal_id');
     }
 }

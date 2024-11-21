@@ -14,7 +14,7 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-Route::get('/', [PenggunaController::class, 'showPengguna']);
+Route::get('/', [PenggunaController::class, 'showPengguna'])->name('presensi.index');
 Route::post('/save-photo', [PenggunaController::class, 'savePhoto']);
 Route::post('/store-yatimin', [PenggunaController::class, 'store'])->name('store-yatimin');
 Route::post('/update-status', [PenggunaController::class, 'updateStatus']);

@@ -34,8 +34,7 @@
                 <div class="sidebar-header">
                     <div class="d-flex justify-content-between">
                         <div class="logo">
-                            <a href="/"><img src="assets/images/logo/logo.png" alt="Logo"
-                                    srcset=""></a>
+                            <a href="/"><img src="assets/images/logo/logo.png" alt="Logo" srcset=""></a>
                         </div>
                         <div class="toggler">
                             <a href="#" class="sidebar-hide d-xl-none d-block"><i
@@ -75,6 +74,22 @@
             <div class="page-content">
                 <section class="row">
                     <div class="col-12 col-lg-12">
+                        <form method="GET" action="{{ route('presensi.index') }}" id="filterForm">
+                            <div class="col-6 col-lg-3 col-md-6">
+                                <div class="card">
+                                    <div class="card-body px-3 py-2">
+                                        <div class="row mt-3">
+                                            <div class="col-md-12">
+                                                <label for="filterDate" class="form-label">Tanggal Hari Ini</label>
+                                                <input type="date" id="filterDate" name="filterDate"
+                                                    class="form-control"
+                                                    value="{{ request('filterDate') ?? date('Y-m-d') }}">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
                         <div class="row">
                             <div class="col-6 col-lg-3 col-md-6">
                                 <div class="card">
@@ -100,6 +115,7 @@
                                             <div class="col-md-4">
                                                 <div class="stats-icon red">
                                                     <i class="iconly-boldProfile"></i>
+
                                                 </div>
                                             </div>
                                             <div class="col-md-8">
@@ -136,9 +152,11 @@
                                                     <td>{{ $pengguna->kelahiran }}</td>
                                                     <td>{{ $pengguna->alamat }}</td>
                                                     <td>
-                                                        @if ($pengguna->foto)
-                                                            <img src="{{ asset('storage/photos/' . $pengguna->foto) }}"
+                                                        @if ($pengguna->presensis->isNotEmpty() && $pengguna->presensis->first()->foto)
+                                                            <img src="{{ asset('storage/' . $pengguna->presensis->first()->foto) }}"
                                                                 alt="Foto" width="50">
+                                                        @else
+                                                            <span>Tidak ada foto</span>
                                                         @endif
                                                     </td>
                                                     <td>
@@ -165,11 +183,13 @@
                                                 </tr>
                                             @empty
                                                 <tr>
-                                                    <td colspan="7">Tidak ada data</td>
+                                                    <td class="text-center" colspan="8">Belum ada data absensi pada
+                                                        tanggal tersebut</td>
                                                 </tr>
                                             @endforelse
                                         </tbody>
                                     </table>
+
 
                                 </div>
                             </div>
@@ -283,6 +303,23 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/webcamjs/1.0.26/webcam.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        document.getElementById('filterDate').addEventListener('change', function() {
+            document.getElementById('filterForm').submit();
+        });
+    </script>
+
+    @if (session('error'))
+        <script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Oops...',
+                text: '{{ session('error') }}',
+                showConfirmButton: true,
+            });
+        </script>
+    @endif
 
     <script>
         $(document).ready(function() {
@@ -429,6 +466,10 @@
         }
 
         function takeSnapshot(userId) {
+            const filterDate = document.getElementById('filterDate').value;
+
+            const date = filterDate ? filterDate : new Date().toISOString().split('T')[0];
+
             Webcam.snap(function(data_uri) {
                 const cameraDiv = document.getElementById('my_camera_' + userId);
                 const resultDiv = document.getElementById('results_' + userId);
@@ -444,7 +485,8 @@
                     data: {
                         _token: '{{ csrf_token() }}',
                         user_id: userId,
-                        photo: data_uri
+                        photo: data_uri,
+                        filter_date: date
                     },
                     success: function(response) {
                         alert('Foto berhasil disimpan');
@@ -456,6 +498,7 @@
                 });
             });
         }
+
 
         function closeWebcam(userId) {
             Webcam.reset(`#my_camera_${userId}`);
