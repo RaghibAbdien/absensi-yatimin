@@ -15,8 +15,8 @@ class TanggalPresensiSeeder extends Seeder
      */
     public function run()
     {
-        $startDate = Carbon::create(2024, 11, 1); // Awal November
-        $endDate = Carbon::create(2025, 1, 31); // Akhir Januari
+        $startDate = Carbon::create(2025, 2, 1); // Awal Februari
+        $endDate = Carbon::create(2025, 3, 31); // Akhir Maret
 
         for ($date = $startDate; $date->lte($endDate); $date->addDay()) {
             TanggalPresensi::updateOrCreate([
@@ -24,6 +24,6 @@ class TanggalPresensiSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('Semua tanggal dari bulan November hingga Januari berhasil dimasukkan.');
+        $this->command->info('Semua tanggal dari bulan Februari hingga Maret berhasil dimasukkan.');
     }
 }

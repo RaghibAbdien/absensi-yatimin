@@ -19,15 +19,21 @@ class PenggunaController extends Controller
         $tanggal = TanggalPresensi::where('tanggal', $filterDate)->first();
 
         if (!$tanggal) {
-            return redirect()->back()->with('error', 'Belum ada data absensi untuk tanggal tersebut');
+            return redirect()->back()->with('error', 'Tanggal yang digunakan untuk absensi belum ada');
         }
 
         $tanggalId = $tanggal->id;
 
-        $data = Pengguna::with(['presensis' => function ($query) use ($tanggalId) {
+        // Hanya ambil pengguna yang memiliki data presensi pada tanggal tersebut
+        $data = Pengguna::whereHas('presensis', function ($query) use ($tanggalId) {
             $query->where('tanggal_id', $tanggalId);
-        }])->get();
+        })
+            ->with(['presensis' => function ($query) use ($tanggalId) {
+                $query->where('tanggal_id', $tanggalId);
+            }])
+            ->get();
 
+        // Hitung pengguna yang sudah dan belum absen
         $sdhAbsen = $data->filter(function ($pengguna) {
             return $pengguna->presensis->isNotEmpty() && $pengguna->presensis->first()->foto != null;
         })->count();
@@ -38,6 +44,7 @@ class PenggunaController extends Controller
 
         return view('index', compact('data', 'filterDate', 'sdhAbsen', 'blmAbsen'));
     }
+
 
 
     public function store(Request $request)

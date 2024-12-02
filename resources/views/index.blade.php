@@ -449,21 +449,41 @@
         }
 
         function startWebcam(deviceId, userId) {
-            Webcam.reset();
+            Webcam.reset(); // Reset kamera sebelum mulai
             Webcam.set({
                 width: 1000,
                 height: 600,
                 image_format: 'jpeg',
                 jpeg_quality: 90,
                 constraints: {
-                    deviceId: {
-                        exact: deviceId
+                    video: {
+                        deviceId: deviceId ? {
+                            exact: deviceId
+                        } : undefined
                     }
                 }
             });
 
-            Webcam.attach(`#my_camera_${userId}`);
+            Webcam.attach(`#my_camera_${userId}`, function(err) {
+                if (err) {
+                    console.error("Error saat menghubungkan kamera:", err);
+                    if (err.name === "OverconstrainedError") {
+                        console.warn("Menggunakan default settings karena OverconstrainedError.");
+                        Webcam.set({
+                            width: 640,
+                            height: 480,
+                            image_format: 'jpeg',
+                            jpeg_quality: 90
+                        });
+                        Webcam.attach(`#my_camera_${userId}`);
+                    } else {
+                        alert(
+                            "Tidak dapat mengakses kamera. Pastikan browser memiliki izin untuk menggunakan kamera.");
+                    }
+                }
+            });
         }
+
 
         function takeSnapshot(userId) {
             const filterDate = document.getElementById('filterDate').value;
